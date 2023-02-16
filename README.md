@@ -5,8 +5,7 @@ Working with customer and sales data
 ----
 ## Potential Projects Structure
 
-├── src
-│  
+
 
 ├── **user_behavior**/
 |    ├── data/
@@ -50,3 +49,20 @@ Working with customer and sales data
     main.py - *End-to-end script to run the whole process from ingestion to results*
     app.py - *Finalized reporting dashboard with results and processes*
     README.md
+    
+project-name/
+├── data/
+│   ├── customer_data.csv
+│   ├── customer_data_engineered.csv
+│   └── customer_churn.csv
+├── notebooks/
+│   ├── data_exploration.ipynb
+│   ├── data_preprocessing.ipynb
+│   ├── model_training.ipynb
+│   └── model_evaluation.ipynb
+└── src/
+    ├── data.py
+    ├── models.py
+    ├── utils.py
+    └── main.py
+
