@@ -6,7 +6,7 @@ Working with customer and sales data
 ## Potential Projects Structure
 
 
-
+```bash
 ├── **user_behavior**/
 |    ├── data/
 |    |    ├── raw/
@@ -24,6 +24,7 @@ Working with customer and sales data
 |    |    ├── evaluation.py
 |    ├── app.py
 |    ├── README.md
+```
     
 **churn_prediction**/
     data/
