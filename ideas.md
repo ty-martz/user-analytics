@@ -26,3 +26,20 @@ For this project, you could take a dataset of customer behavior for a subscripti
   - This dataset contains information on customer behavior for a telecommunications company, including demographics, usage data, and churn status. You could use this data to build a model to predict which customers are likely to churn, and explore what factors are most predictive of churn.
 - The Online Retail dataset from the UCI Machine Learning Repository (mentioned above):
   - This dataset also contains information on customer behavior, including information on customer ID, purchase behavior, and demographic information. You could use this data to build a model to predict which customers are likely to churn, and explore how purchase behavior and demographics are related to churn likelihood.
+
+## Content and Music Analysis
+Analyze the Spotify content and music library to identify trends and insights that could inform future content creation and music licensing decisions.
+
+### Data: 
+- Spotify content and music library metadata, workout metrics, member engagement data from their API
+
+### Questions to answer:
+- What are the most popular music genres and artists?
+- Are there any patterns in member engagement based on the type of workout or music used?
+- Can we identify any trends in member behavior or preferences over time?
+
+### Skills to demonstrate:
+- Data cleaning and manipulation
+- Exploratory data analysis
+- Data visualization
+- Machine learning (optional)
