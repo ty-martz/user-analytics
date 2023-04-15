@@ -1,81 +1,112 @@
-import pandas as pd
+from dash import dcc, html, dash
 import plotly.graph_objs as go
-from dash import dash, dcc, html
-from helpers import calc_conversion_rate
+import pandas as pd
+from scipy.stats import ttest_ind
 
-# Load data
-data = pd.read_csv('./product-analytics/data/ab_test_data.csv').sample(10000)
+# Load the dataset
+df = pd.read_csv('./product-analytics/data/WA_Marketing-Campaign.csv')
 
-# Calculate conversion rates for each group
-control_conversion = calc_conversion_rate(data, 'control')
-test_conversion = calc_conversion_rate(data, 'test')
-print('Conversion Rates:')
-print(f'--Control = {control_conversion}')
-print(f'--Test = {test_conversion}')
-
-# Create bar chart to compare conversion rates
-bar_chart = go.Bar(
-    x=['Control', 'Test'],
-    y=[control_conversion, test_conversion],
-    text=[f'{control_conversion:.2%}', f'{test_conversion:.2%}'],
-    textposition='auto',
-    marker=dict(color=['rgb(30,50,11)', 'rgb(213,187,102)']),
-    hoverinfo='text',
-    name='Conversion Rate'
-)
-
-# Create line chart to show number of views and clicks
-control_data = data[data['group'] == 'control']
-test_data = data[data['group'] == 'test']
-
-control_line = go.Scatter(
-    x=control_data.index,
-    y=control_data['views'],
-    name='Control Views',
-    mode='markers'
-)
-
-test_line = go.Scatter(
-    x=test_data.index,
-    y=test_data['views'],
-    name='Test Views',
-    mode='markers'
-)
-
-control_clicks = go.Scatter(
-    x=control_data.index,
-    y=control_data['clicks'],
-    name='Control Clicks',
-    mode='markers'
-)
-
-test_clicks = go.Scatter(
-    x=test_data.index,
-    y=test_data['clicks'],
-    name='Test Clicks',
-    mode='markers'
-)
-
-line_chart = go.Figure(
-    data=[control_line, test_line, control_clicks, test_clicks],
-    layout=go.Layout(title='Views and Clicks Over Time')
-)
-
-# Create the dashboard layout
+# Define the app
 app = dash.Dash(__name__)
 
+# Define the layout of the app
 app.layout = html.Div(children=[
-    html.H1(children='A/B Test Dashboard'),
+    # Dashboard component
     html.Div(children=[
-        html.Div(children=[
-            dcc.Graph(id='conversion-graph', figure=go.Figure(data=bar_chart))
-        ], className='six columns'),
-        html.Div(children=[
-            dcc.Graph(id='line-graph', figure=line_chart)
-        ], className='six columns')
-    ], className='row')
+        html.H1(children="Sales Dashboard"),
+        dcc.Graph(
+            id="sales-graph",
+            figure={
+                "data": [
+                    go.Bar(
+                        x=df["Promotion"],
+                        y=df["SalesInThousands"],
+                        name="Sales"
+                    )
+                ],
+                "layout": go.Layout(
+                    title="Sales by Promotion",
+                    xaxis={"title": "Promotion"},
+                    yaxis={"title": "Sales (in thousands)"}
+                )
+            }
+        )
+    ], className="six columns"),
+
+    # A/B test component
+    html.Div(children=[
+        html.H1(children="A/B Test Results"),
+        dcc.Dropdown(
+            id="promotion-dropdown",
+            options=[
+                {"label": "Promotion 1", "value": 1},
+                {"label": "Promotion 2", "value": 2},
+                {"label": "Promotion 3", "value": 3}
+            ],
+            value=1
+        ),
+        dcc.Graph(
+            id="ab-test-graph",
+            figure={
+                "data": [
+                    go.Bar(
+                        x=["Control", "Variant"],
+                        y=[df[df["Promotion"] == 1]["SalesInThousands"].mean(),
+                           df[df["Promotion"] == 1]["SalesInThousands"].mean()],
+                        name="Sales"
+                    )
+                ],
+                "layout": go.Layout(
+                    title="A/B Test Results",
+                    xaxis={"title": "Group"},
+                    yaxis={"title": "Sales (in thousands)"}
+                )
+            }
+        )
+    ], className="six columns")
 ])
 
-# Run the dashboard
-if __name__ == '__main__':
+# Define the callback functions
+@app.callback(
+    dash.Output("ab-test-graph", "figure"),
+    [dash.Input("promotion-dropdown", "value")]
+)
+def update_ab_test_graph(promotion):
+    control = df[(df["Promotion"] == promotion) & (df["Group"] == "Control")]["SalesInThousands"]
+    variant = df[(df["Promotion"] == promotion) & (df["Group"] == "Variant")]["SalesInThousands"]
+
+    # Run the t-test
+    t_stat, p_value = ttest_ind(control, variant)
+
+    # Update the figure
+    figure = {
+        "data": [
+            go.Bar(
+                x=["Control", "Variant"],
+                y=[control.mean(), variant.mean()],
+                name="Sales"
+            )
+        ],
+        "layout": go.Layout(
+            title=f"A/B Test Results for Promotion {promotion}",
+            xaxis={"title": "Group"},
+            yaxis={"title": "Sales (in thousands)"},
+            annotations=[
+                {
+                    "x": 0.5,
+                    "y": 1.15,
+                    "text": f"t-statistic: {round(t_stat, 2)}, p-value: {round(p_value, 4)}",
+                    "xref": "paper",
+                    "yref": "paper",
+                    "showarrow": False,
+                    "font": {"size": 12}
+                }
+            ]
+        )
+    }
+
+    return figure
+
+# Run the app
+if __name__ == "__main__":
     app.run_server(debug=True)
