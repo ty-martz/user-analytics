@@ -1,112 +1,87 @@
 from dash import dcc, html, dash
-import plotly.graph_objs as go
 import pandas as pd
-from scipy.stats import ttest_ind
+import plotly.express as px
 
-# Load the dataset
+# load the data
 df = pd.read_csv('./product-analytics/data/WA_Marketing-Campaign.csv')
 
-# Define the app
+# init the app
 app = dash.Dash(__name__)
 
-# Define the layout of the app
-app.layout = html.Div(children=[
-    # Dashboard component
-    html.Div(children=[
-        html.H1(children="Sales Dashboard"),
-        dcc.Graph(
-            id="sales-graph",
-            figure={
-                "data": [
-                    go.Bar(
-                        x=df["Promotion"],
-                        y=df["SalesInThousands"],
-                        name="Sales"
-                    )
-                ],
-                "layout": go.Layout(
-                    title="Sales by Promotion",
-                    xaxis={"title": "Promotion"},
-                    yaxis={"title": "Sales (in thousands)"}
-                )
-            }
-        )
-    ], className="six columns"),
-
-    # A/B test component
-    html.Div(children=[
-        html.H1(children="A/B Test Results"),
+app.layout = html.Div([
+    
+    # location id filter
+    html.Div([
         dcc.Dropdown(
-            id="promotion-dropdown",
-            options=[
-                {"label": "Promotion 1", "value": 1},
-                {"label": "Promotion 2", "value": 2},
-                {"label": "Promotion 3", "value": 3}
-            ],
-            value=1
+            id='location-dropdown',
+            options=[{'label': loc, 'value': loc} for loc in ['All'] + sorted(df['LocationID'].unique())],
+            value='All'
         ),
-        dcc.Graph(
-            id="ab-test-graph",
-            figure={
-                "data": [
-                    go.Bar(
-                        x=["Control", "Variant"],
-                        y=[df[df["Promotion"] == 1]["SalesInThousands"].mean(),
-                           df[df["Promotion"] == 1]["SalesInThousands"].mean()],
-                        name="Sales"
-                    )
-                ],
-                "layout": go.Layout(
-                    title="A/B Test Results",
-                    xaxis={"title": "Group"},
-                    yaxis={"title": "Sales (in thousands)"}
-                )
-            }
-        )
-    ], className="six columns")
+        html.Label('Location')
+    ], style={'width': '25%', 'display': 'inline-block'}),
+    
+    # market id filter
+    html.Div([
+        dcc.Dropdown(
+            id='market-dropdown',
+            options=[{'label': market, 'value': market} for market in ['All'] + sorted(df['MarketID'].unique())],
+            value='All'
+        ),
+        html.Label('Market')
+    ], style={'width': '25%', 'display': 'inline-block'}),
+    
+    # total sales KPI
+    html.Div([
+        html.H4(id='total-sales', style={"text-align": "center"})
+    ], style={'width': '25%', 'display': 'inline-block', 'border': '2px solid black'}),
+    
+    # bar chart
+    html.Div([
+        dcc.Graph(id='promotion-bar-chart')
+    ], style={'width': '50%', 'display': 'inline-block'}),
+    
+    # line chart
+    html.Div([
+        dcc.Graph(id='sales-line-chart')
+    ], style={'width': '50%', 'display': 'inline-block'}),
+    
 ])
 
-# Define the callback functions
+
 @app.callback(
-    dash.Output("ab-test-graph", "figure"),
-    [dash.Input("promotion-dropdown", "value")]
+    [dash.Output('total-sales', 'children'),
+     dash.Output('promotion-bar-chart', 'figure'),
+     dash.Output('sales-line-chart', 'figure')],
+    [dash.Input('location-dropdown', 'value'),
+     dash.Input('market-dropdown', 'value')]
 )
-def update_ab_test_graph(promotion):
-    control = df[(df["Promotion"] == promotion) & (df["Group"] == "Control")]["SalesInThousands"]
-    variant = df[(df["Promotion"] == promotion) & (df["Group"] == "Variant")]["SalesInThousands"]
+def update_charts(location, market):
+    # filters
+    if location == 'All' and market == 'All':
+        filtered_df = df.copy()
+    elif location == 'All':
+        filtered_df = df[df['MarketID'] == market]
+    elif market == 'All':
+        filtered_df = df[df['LocationID'] == location]
+    else:
+        filtered_df = df[(df['LocationID'] == location) & (df['MarketID'] == market)]
+    
+    # calculate total sales and update KPI
+    total_sales = filtered_df['SalesInThousands'].sum()
+    total_sales_kpi = f'Total Sales: ${total_sales:.2f}k'
+    
+    # bar
+    promotion_sales = filtered_df.groupby('Promotion')['SalesInThousands'].sum().reset_index()
+    promotion_bar_chart = px.bar(promotion_sales, x='Promotion', y='SalesInThousands', 
+                                  color='Promotion', title='Total Sales by Promotion')
+    
+    # line
+    sales_by_week = filtered_df.groupby(['week', 'Promotion'])['SalesInThousands'].sum().reset_index()
+    sales_line_chart = px.line(sales_by_week, x='week', y='SalesInThousands', color='Promotion',
+                               title='Sales by Week')
+    
+    return total_sales_kpi, promotion_bar_chart, sales_line_chart
 
-    # Run the t-test
-    t_stat, p_value = ttest_ind(control, variant)
 
-    # Update the figure
-    figure = {
-        "data": [
-            go.Bar(
-                x=["Control", "Variant"],
-                y=[control.mean(), variant.mean()],
-                name="Sales"
-            )
-        ],
-        "layout": go.Layout(
-            title=f"A/B Test Results for Promotion {promotion}",
-            xaxis={"title": "Group"},
-            yaxis={"title": "Sales (in thousands)"},
-            annotations=[
-                {
-                    "x": 0.5,
-                    "y": 1.15,
-                    "text": f"t-statistic: {round(t_stat, 2)}, p-value: {round(p_value, 4)}",
-                    "xref": "paper",
-                    "yref": "paper",
-                    "showarrow": False,
-                    "font": {"size": 12}
-                }
-            ]
-        )
-    }
-
-    return figure
-
-# Run the app
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run_server(debug=True)
