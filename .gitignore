@@ -130,3 +130,9 @@ dmypy.json
 
 old_*.ipynb
 old_*.py
+
+# other projects
+patient-healthcare/
+music-analysis/
+churn-prediction/
+ideas.md
